@@ -59,11 +59,13 @@ function getActiveRouteName(navigationState: NavigationState) {
 
 const testHookStore = new TestHookStore();
 
-@observer
-export default class App extends Component {
-  private appState = new AppState();
+const appStateActive = false;
 
-  public componentDidMount() {
+@observer
+class App extends Component {
+  private appState: AppState | null = null;
+
+  public async componentDidMount() {
     const { height, width } = Dimensions.get('window');
     const aspectRatio = height / width;
     const isPhone = aspectRatio >= 1.6;
@@ -76,21 +78,44 @@ export default class App extends Component {
     // Prevent warnings about orientationDidChange getting fired without a listener
     Orientation.addOrientationListener(() => {});
 
-    // tslint:disable-next-line:no-unused-expression
-    new FirebaseBridge(this.appState);
-
     Linking.getInitialURL().then(url => this.handleUrl({ url }));
     Linking.addEventListener('url', this.handleUrl);
+
+    if (!appStateActive) {
+      this.initAppState();
+      this.setState({ appStateInit: true });
+    } else {
+      const waitForTeardown = new Promise(resolve => {
+        const checkForActive = () => {
+          if (!appStateActive) {
+            setTimeout(() => {
+              // Pause a bit to allow cleanup to finish.
+              resolve();
+            }, 10000);
+          } else {
+            setTimeout(checkForActive, 1000);
+          }
+        };
+        setTimeout(checkForActive, 10);
+      });
+      await waitForTeardown;
+      this.initAppState();
+      this.setState({ appStateInit: true });
+    }
   }
 
-  public componentWillUnmount() {
+  public async componentWillUnmount() {
     Linking.removeEventListener('url', this.handleUrl);
-    this.appState.teardown();
+    await this.appState.teardown();
+    appStateActive = false;
   }
 
-  public render() { // find const testHookStore on top of class
+  public render() {
+    if (!this.appState) {
+      return <Splash />;
+    }
     return (
-      <Tester specs={[AppSpec]} store={testHookStore} waitTime={20000}>
+      <Tester specs={[AppSpec]} store={testHookStore} waitTime={0}>
         <Provider appState={this.appState} uiState={this.appState.uiState}>
           {(() => {
             if (!this.appState.initialized) {
@@ -105,6 +130,13 @@ export default class App extends Component {
         </Provider>
       </Tester>
     );
+  }
+
+  private initAppState() {
+    appStateActive = true;
+    this.appState = new AppState();
+    // tslint:disable-next-line:no-unused-expression
+    new FirebaseBridge(this.appState);
   }
 
   private onNavigationStateChange = (previousState, currentState) => {
@@ -150,4 +182,14 @@ export default class App extends Component {
       console.warn('Unsupported url: ', url);
     }
   };
+}
+
+export default class CavyApp extends React.Component {
+  public render() {
+    return (
+      <Tester specs={[AppSpec]} store={testHookStore} waitTime={20000}>
+        <App />
+      </Tester>
+    );
+  }
 }

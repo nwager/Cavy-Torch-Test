@@ -115,8 +115,8 @@ const borderWidth = epicSize(1.5);
   };
 }
 
-const TestableScene = hook(HollowPill);
-export default TestableScene;
+const HollowPillTest = hook(HollowPill);
+export default HollowPillTest;
 
 const styles = StyleSheet.create({
   border: {
