@@ -1,4 +1,4 @@
-import { focusText, _keyboardDidShow } from './helpers';
+import { focusText, blueText, _keyboardDidShow, _keyboardDidHide, blurText } from './helpers';
 import { Keyboard } from 'react-native';
 
 export default function(spec) {
@@ -11,8 +11,12 @@ export default function(spec) {
         await spec.pause(1000);
         const text = await spec.findComponent('EditSceneName');
         text.keyboardListener = Keyboard.addListener('keyboardDidShow', _keyboardDidShow);
+        text.keyboardListener = Keyboard.addListener('keyboardDidHide', _keyboardDidHide);
         await focusText(text);
-        await spec.pause(10000);
+        await spec.pause(2000);
+        await blurText(text);
+        await spec.pause(10000)
+
       });
     });
   }
